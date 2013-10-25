@@ -86,6 +86,25 @@ struct frame_buffers_t
 	struct frame_t *forward;
 };
 
+void frame_write(struct frame_t *frame)
+{
+	static int frame_id = 0;
+	char filename[128];
+	int width = frame->width;
+	int height = frame->height;
+	FILE *fp;
+
+	sprintf(filename, "frame.%d", frame_id++);
+	fp = fopen(filename, "w");
+
+	fwrite(&width, sizeof(int), 1, fp);
+	fwrite(&height, sizeof(int), 1, fp);
+	fwrite(frame->luma_buffer, 1, width * height, fp);
+	fwrite(frame->chroma_buffer, 1, width * height / 2, fp);
+
+	fclose (fp);
+}
+
 void frame_show(struct frame_t *frame)
 {
 	static int disp_initialized = 0;
@@ -101,7 +120,7 @@ void frame_show(struct frame_t *frame)
 
 		disp_set_para(ve_virt2phys(frame->luma_buffer), ve_virt2phys(frame->chroma_buffer),
 			frame->color, frame->width, frame->height,
-			0, 0, 800, 600);
+			0, 0, 1920, 1080);
 
 		disp_initialized = 1;
 	}
@@ -157,7 +176,7 @@ void decode_mpeg(struct frame_buffers_t *frame_buffers, const struct mpeg_t * co
 	int input_size = (mpeg->len + 65535) & ~65535;
 	uint8_t *input_buffer = ve_malloc(input_size);
 	memcpy(input_buffer, mpeg->data, mpeg->len);
-	ve_flush_cache(input_buffer, mpeg->len);
+	// ve_flush_cache(input_buffer, mpeg->len);
 
 	void *ve_regs = ve_get_regs();
 
@@ -250,7 +269,7 @@ int main(int argc, char** argv)
 {
 	AVFormatContext* avfmt_ctx = NULL;
 	int video_stream;
-	enum AVCodecID video_codec;
+	enum CodecID video_codec;
 
 	if (argc < 2)
 	{
@@ -285,9 +304,9 @@ int main(int argc, char** argv)
 
 	video_codec = avfmt_ctx->streams[video_stream]->codec->codec_id;
 
-	if (video_codec != AV_CODEC_ID_MPEG1VIDEO && video_codec != AV_CODEC_ID_MPEG2VIDEO)
+	if (video_codec != CODEC_ID_MPEG1VIDEO && video_codec != CODEC_ID_MPEG2VIDEO)
 	{
-		fprintf(stderr, "Can't handle codec %s\n", avcodec_get_name(video_codec));
+		fprintf(stderr, "Can't handle codec %d\n", video_codec);
 		avformat_close_input(&avfmt_ctx);
 		exit(1);
 	}
@@ -299,7 +318,7 @@ int main(int argc, char** argv)
 
 	struct mpeg_t mpeg;
 	memset(&mpeg, 0, sizeof(mpeg));
-	if (video_codec == AV_CODEC_ID_MPEG1VIDEO)
+	if (video_codec == CODEC_ID_MPEG1VIDEO)
 		mpeg.type = MPEG1;
 	else
 		mpeg.type = MPEG2;
@@ -357,11 +376,15 @@ int main(int argc, char** argv)
 			// if we decoded a displayable frame, show it
 			if (frames[disp_frame % RING_BUFFER_SIZE] != NULL)
 			{
+				int c;
 				frame_show(frames[disp_frame % RING_BUFFER_SIZE]);
+				frame_write(frames[disp_frame % RING_BUFFER_SIZE]);
 				frame_unref(frames[(disp_frame - 2) % RING_BUFFER_SIZE]);
 				frames[(disp_frame - 2) % RING_BUFFER_SIZE] = NULL;
 				disp_frame++;
-				getchar();
+				c = getchar();
+				if (c == 'q')
+					break;
 			}
 
 		}

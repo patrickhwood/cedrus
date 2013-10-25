@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <err.h>
 #include <fcntl.h>
+#include <sys/timeb.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include "jpeg.h"
@@ -155,6 +156,8 @@ void output_ppm(FILE *file, struct jpeg_t *jpeg, uint8_t *luma_buffer, uint8_t *
 
 void decode_jpeg(struct jpeg_t *jpeg)
 {
+	long long startt, loadt, decodet;
+	struct timeb tb;
 	if (!ve_open())
 		err(EXIT_FAILURE, "Can't open VE");
 
@@ -168,6 +171,8 @@ void decode_jpeg(struct jpeg_t *jpeg)
 	memcpy(input_buffer, jpeg->data, jpeg->data_len);
 	ve_flush_cache(input_buffer, jpeg->data_len);
 
+	ftime (&tb);
+	startt = (long long) tb.time * 1000 + tb.millitm;
 	// activate MPEG engine
 	writel(ve_regs + 0x00, 0x00130000);
 
@@ -209,11 +214,17 @@ void decode_jpeg(struct jpeg_t *jpeg)
 	writel(ve_regs + 0x100 + 0xe0, 0x00000000);
 	set_huffman_tables(jpeg, ve_regs);
 
+	ftime (&tb);
+	loadt = (long long) tb.time * 1000 + tb.millitm;
+
 	// start
 	writeb(ve_regs + 0x100 + 0x18, 0x0e);
 
 	// wait for interrupt
 	ve_wait(1);
+
+	ftime (&tb);
+	decodet = (long long) tb.time * 1000 + tb.millitm;
 
 	// clean interrupt flag (??)
 	writel(ve_regs + 0x100 + 0x1c, 0x0000c00f);
@@ -222,6 +233,10 @@ void decode_jpeg(struct jpeg_t *jpeg)
 	writel(ve_regs + 0x0, 0x00130007);
 
 	//output_ppm(stdout, jpeg, output, output + (output_buf_size / 2));
+
+	fprintf (stderr, "total time: %lld msec, decode time: %lld msec\n", decodet - startt, decodet - loadt);
+	fflush (stderr);
+	sleep (1);
 
 	if (!disp_open())
 	{

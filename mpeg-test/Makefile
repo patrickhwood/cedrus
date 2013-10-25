@@ -22,7 +22,7 @@ endif
 
 $(TARGET): $(OBJ)
 	@echo "LD $(TARGET)"
-	$(Q)g++ $(LDFLAGS) $(OBJ) -o $@
+	$(Q)g++ $(OBJ) $(LDFLAGS) -o $@
 
 .PHONY: clean
 clean:

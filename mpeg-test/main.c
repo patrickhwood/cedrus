@@ -90,7 +90,7 @@ void frame_write(struct frame_t *frame)
 {
 	static int frame_id = 0;
 	char filename[128];
-	int width = frame->width;
+	int width = (frame->width + 31) & ~31;
 	int height = frame->height;
 	FILE *fp;
 
@@ -99,10 +99,32 @@ void frame_write(struct frame_t *frame)
 
 	fwrite(&width, sizeof(int), 1, fp);
 	fwrite(&height, sizeof(int), 1, fp);
-	fwrite(frame->luma_buffer, 1, width * height, fp);
-	fwrite(frame->chroma_buffer, 1, width * height / 2, fp);
 
-	fclose (fp);
+	// reorder Y data from decoder
+	unsigned char *buf = malloc(width * height);
+	unsigned char *tmp = buf;
+	int x, y;
+
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < width; x++) {
+			*tmp++ = *((unsigned char *)(frame->luma_buffer + (x / 32) * 1024 + (x % 32) + ((y % 32) * 32) + ((y / 32) * (((width + 31) / 32) * 1024))));
+		}
+	}
+	fwrite(buf, 1, width * height, fp);
+
+	// reorder UV data from decoder
+	unsigned char *tmpU = buf;
+	unsigned char *tmpV = buf + width * height / 4;
+	for (y = 0; y < height/2; y++) {
+		for (x = 0; x < width; x += 2) {
+			*tmpU++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32)) + ((y % 32) * 32) + ((y / 32) * (((width + 31) / 32) * 1024))));
+			*tmpV++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32) + 1) + ((y % 32) * 32) + ((y / 32) * (((width + 31) / 32) * 1024))));
+		}
+	}
+	
+	fwrite(buf, 1, width * height / 2, fp);
+	fclose(fp);
+	free(buf);
 }
 
 void frame_show(struct frame_t *frame)

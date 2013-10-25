@@ -101,7 +101,7 @@ int ve_open(void)
 
 	ioctl(fd, IOCTL_ENGINE_REQ, 0);
 	ioctl(fd, IOCTL_ENABLE_VE, 0);
-	ioctl(fd, IOCTL_SET_VE_FREQ, 160);
+	ioctl(fd, IOCTL_SET_VE_FREQ, 320);
 	ioctl(fd, IOCTL_RESET_VE, 0);
 
 	return 1;

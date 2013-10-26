@@ -86,6 +86,10 @@ struct frame_buffers_t
 	struct frame_t *forward;
 };
 
+typedef struct byte32 {
+	unsigned int x[8];
+} byte32;
+
 void frame_write(struct frame_t *frame)
 {
 	static int frame_id = 0;
@@ -102,12 +106,13 @@ void frame_write(struct frame_t *frame)
 
 	// reorder Y data from decoder
 	unsigned char *buf = malloc(width * height);
-	unsigned char *tmp = buf;
+	byte32 *tmp = (byte32 *) buf;
 	int x, y;
 
 	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++) {
-			*tmp++ = *((unsigned char *)(frame->luma_buffer + (x / 32) * 1024 + (x % 32) + ((y % 32) * 32) + ((y / 32) * (((width + 31) / 32) * 1024))));
+		int yoffset = ((y % 32) * 32) + ((y / 32) * ((width / 32) * 1024));
+		for (x = 0; x < width / 32; x++) {
+			*tmp++ = *((byte32 *)(frame->luma_buffer + x * 1024 + yoffset));
 		}
 	}
 	fwrite(buf, 1, width * height, fp);
@@ -116,9 +121,10 @@ void frame_write(struct frame_t *frame)
 	unsigned char *tmpU = buf;
 	unsigned char *tmpV = buf + width * height / 4;
 	for (y = 0; y < height/2; y++) {
+		int yoffset = ((y % 32) * 32) + ((y / 32) * ((width / 32) * 1024));
 		for (x = 0; x < width; x += 2) {
-			*tmpU++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32)) + ((y % 32) * 32) + ((y / 32) * (((width + 31) / 32) * 1024))));
-			*tmpV++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32) + 1) + ((y % 32) * 32) + ((y / 32) * (((width + 31) / 32) * 1024))));
+			*tmpU++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32)) + yoffset));
+			*tmpV++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32) + 1) + yoffset));
 		}
 	}
 	
@@ -198,7 +204,7 @@ void decode_mpeg(struct frame_buffers_t *frame_buffers, const struct mpeg_t * co
 	int input_size = (mpeg->len + 65535) & ~65535;
 	uint8_t *input_buffer = ve_malloc(input_size);
 	memcpy(input_buffer, mpeg->data, mpeg->len);
-	// ve_flush_cache(input_buffer, mpeg->len);
+	ve_flush_cache(input_buffer, mpeg->len);
 
 	void *ve_regs = ve_get_regs();
 

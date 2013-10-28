@@ -2,5 +2,7 @@
 *~
 *.o
 *.d
+*.mpg
+*.MPG
 
 !.gitignore

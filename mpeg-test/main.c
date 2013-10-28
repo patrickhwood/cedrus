@@ -32,9 +32,9 @@
 #include <err.h>
 #include <libavformat/avformat.h>
 #include "mpeg.h"
-#include "../common/ve.h"
-#include "../common/io.h"
-#include "../common/disp.h"
+#include "ve.h"
+#include "io.h"
+#include "disp.h"
 
 static const uint8_t mpeg_default_intra_quant[64] =
 {

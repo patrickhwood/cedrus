@@ -1,6 +1,6 @@
 include config.mk
 
-CFLAGS += -MD -MP -MQ $@
+CFLAGS += -g -O2 -I../common -MD -MP -MQ $@
 MAKEFLAGS += -rR --no-print-directory
 
 OBJ = $(addsuffix .o,$(basename $(SRC)))

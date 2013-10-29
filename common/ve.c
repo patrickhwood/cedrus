@@ -96,8 +96,8 @@ int ve_open(void)
 	}
 
 	regs = mmap(NULL, 0x800, PROT_READ | PROT_WRITE, MAP_SHARED, fd, ve.registers);
-	first_memchunk.phys_addr = ve.reserved_mem - PAGE_OFFSET;
-	first_memchunk.size = ve.reserved_mem_size;
+	first_memchunk.phys_addr = ve.reserved_mem - PAGE_OFFSET + ve.reserved_mem_size / 2;
+	first_memchunk.size = ve.reserved_mem_size / 2;
 
 	ioctl(fd, IOCTL_ENGINE_REQ, 0);
 	ioctl(fd, IOCTL_ENABLE_VE, 0);

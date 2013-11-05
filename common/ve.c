@@ -126,6 +126,7 @@ void ve_flush_cache(void *start, int len)
 	};
 
 	ioctl(fd, IOCTL_FLUSH_CACHE, (void*)(&range));
+	ioctl(fd, IOCTL_SET_VE_FREQ, 320);
 }
 
 void *ve_get_regs(void)

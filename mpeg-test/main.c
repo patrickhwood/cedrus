@@ -115,12 +115,11 @@ void frame_write_NV12(struct frame_t *frame)
 	fwrite(buf, 1, width * height, fp);
 
 	// reorder UV data from decoder
-	unsigned char *tmpUV = buf;
+	tmp = (byte32 *) buf;
 	for (y = 0; y < height/2; y++) {
 		int yoffset = ((y % 32) * 32) + ((y / 32) * ((width / 32) * 1024));
-		for (x = 0; x < width; x += 2) {
-			*tmpUV++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32)) + yoffset));
-			*tmpUV++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32) + 1) + yoffset));
+		for (x = 0; x < width / 32; x++) {
+			*tmp++ = *((byte32 *)(frame->chroma_buffer + x * 1024 + yoffset));
 		}
 	}
 	

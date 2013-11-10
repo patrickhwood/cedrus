@@ -98,11 +98,8 @@ void frame_write_NV12(struct frame_t *frame)
 	int height = frame->height;
 	FILE *fp;
 
-	sprintf(filename, "frame.%d", frame_id++);
+	sprintf(filename, "frame.%dx%d.%d", width, height, frame_id++);
 	fp = fopen(filename, "w");
-
-	fwrite(&width, sizeof(int), 1, fp);
-	fwrite(&height, sizeof(int), 1, fp);
 
 	// reorder Y data from decoder
 	unsigned char *buf = malloc(width * height);

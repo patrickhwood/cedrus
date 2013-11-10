@@ -90,7 +90,49 @@ typedef struct byte32 {
 	unsigned int x[8];
 } byte32;
 
-void frame_write(struct frame_t *frame)
+void frame_write_NV12(struct frame_t *frame)
+{
+	static int frame_id = 0;
+	char filename[128];
+	int width = (frame->width + 31) & ~31;
+	int height = frame->height;
+	FILE *fp;
+
+	sprintf(filename, "frame.%d", frame_id++);
+	fp = fopen(filename, "w");
+
+	fwrite(&width, sizeof(int), 1, fp);
+	fwrite(&height, sizeof(int), 1, fp);
+
+	// reorder Y data from decoder
+	unsigned char *buf = malloc(width * height);
+	byte32 *tmp = (byte32 *) buf;
+	int x, y;
+
+	for (y = 0; y < height; y++) {
+		int yoffset = ((y % 32) * 32) + ((y / 32) * ((width / 32) * 1024));
+		for (x = 0; x < width / 32; x++) {
+			*tmp++ = *((byte32 *)(frame->luma_buffer + x * 1024 + yoffset));
+		}
+	}
+	fwrite(buf, 1, width * height, fp);
+
+	// reorder UV data from decoder
+	unsigned char *tmpUV = buf;
+	for (y = 0; y < height/2; y++) {
+		int yoffset = ((y % 32) * 32) + ((y / 32) * ((width / 32) * 1024));
+		for (x = 0; x < width; x += 2) {
+			*tmpUV++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32)) + yoffset));
+			*tmpUV++ = *((unsigned char *)(frame->chroma_buffer + (x / 32) * 1024 + ((x % 32) + 1) + yoffset));
+		}
+	}
+	
+	fwrite(buf, 1, width * height / 2, fp);
+	fclose(fp);
+	free(buf);
+}
+
+void frame_write_I420(struct frame_t *frame)
 {
 	static int frame_id = 0;
 	char filename[128];
@@ -406,7 +448,7 @@ int main(int argc, char** argv)
 			{
 				int c;
 				frame_show(frames[disp_frame % RING_BUFFER_SIZE]);
-				frame_write(frames[disp_frame % RING_BUFFER_SIZE]);
+				frame_write_NV12(frames[disp_frame % RING_BUFFER_SIZE]);
 				frame_unref(frames[(disp_frame - 2) % RING_BUFFER_SIZE]);
 				frames[(disp_frame - 2) % RING_BUFFER_SIZE] = NULL;
 				disp_frame++;

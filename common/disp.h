@@ -33,6 +33,7 @@ __disp_fb_create_para_t fb_get_para(const int fb);
 int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int color_format, const int width, const int height,
 			const int out_x, const int out_y, const int put_width, const int out_height);
+int disp_set_scn_window(const int layer, const __disp_rect_t *scn_win);
 int disp_set_alpha(const int layer, const int alpha) ;
 int disp_new_frame(const int layer, const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int id, const int frame_rate);

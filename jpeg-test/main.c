@@ -159,10 +159,12 @@ typedef struct {
 	int color;
 	uint8_t *luma_output;
 	uint8_t *chroma_output;
+	jpeg_t jpeg;
 } image_layer;
 
-void decode_jpeg(jpeg_t *jpeg, image_layer *layer)
+void decode_jpeg(image_layer *layer)
 {
+	jpeg_t *jpeg = &layer->jpeg;
 	long long startt, loadt, decodet;
 	struct timeb tb;
 
@@ -245,8 +247,9 @@ void decode_jpeg(jpeg_t *jpeg, image_layer *layer)
 	ve_free(input_buffer);
 }
 
-void init_jpeg(jpeg_t *jpeg, image_layer *layer, const char *filename)
+void init_jpeg(image_layer *layer, const char *filename)
 {
+	jpeg_t *jpeg = &layer->jpeg;
 	uint8_t *data;
 	int in;
 	struct stat s;
@@ -267,7 +270,7 @@ void init_jpeg(jpeg_t *jpeg, image_layer *layer, const char *filename)
 	if (!parse_jpeg(jpeg, data, s.st_size))
 		warnx("Can't parse JPEG");
 
-	decode_jpeg(jpeg, layer);
+	decode_jpeg(layer);
 	munmap(data, s.st_size);
 	close(in);
 
@@ -292,53 +295,116 @@ void init_jpeg(jpeg_t *jpeg, image_layer *layer, const char *filename)
 	}
 }
 
-void free_jpeg(jpeg_t *jpeg, image_layer *layer)
+void free_jpeg(image_layer *layer)
 {
-
 	disp_layer_close(layer->layer);
 
 	ve_free(layer->luma_output);
 	ve_free(layer->chroma_output);
 }
 
-void show_jpegs(jpeg_t *jpegs, image_layer *layers, int nlayers)
+void show_jpeg(image_layer *layer)
 {
-	int alpha;
-	int i;
+	jpeg_t *jpeg = &layer->jpeg;
+	__disp_fb_create_para_t fb_para = fb_get_para(0);
+	int width, height;
+	int xoff, yoff;
 
-	for (i = 0; i < nlayers; i++, jpegs++, layers++) {
+	if ((float) jpeg->width / fb_para.width > (float) jpeg->height / fb_para.height) {
+		width = fb_para.width;
+		height = (float) fb_para.width / jpeg->width * jpeg->height;
+	}
+	else {
+		width = (float) fb_para.height / jpeg->height * jpeg->width;
+		height = fb_para.height;
+	}
 
-		__disp_fb_create_para_t fb_para = fb_get_para(0);
+	xoff = (fb_para.width - width) / 2;
+	yoff = (fb_para.height - height) / 2;
 
-		int width, height;
-		int xoff, yoff;
+	disp_set_para(layer->layer, ve_virt2phys(layer->luma_output), ve_virt2phys(layer->chroma_output),
+		layer->color, jpeg->width, jpeg->height,
+		xoff, yoff, width, height);
+}
 
-		if ((float) jpegs->width / fb_para.width > (float) jpegs->height / fb_para.height) {
-			width = fb_para.width;
-			height = (float) fb_para.width / jpegs->width * jpegs->height;
+void transition_layers(image_layer *layer1, image_layer *layer2)
+{
+	jpeg_t *jpeg1 = &layer1->jpeg;
+	jpeg_t *jpeg2 = &layer2->jpeg;
+	__disp_fb_create_para_t fb_para = fb_get_para(0);
+	__disp_rect_t scn_win;
+	int width1, height1, width2, height2;
+	int xoff1, yoff1, xoff2, yoff2;
+	float sf;
+
+	if ((float) jpeg1->width / fb_para.width > (float) jpeg1->height / fb_para.height) {
+		width1 = fb_para.width;
+		height1 = (float) fb_para.width / jpeg1->width * jpeg1->height;
+	}
+	else {
+		width1 = (float) fb_para.height / jpeg1->height * jpeg1->width;
+		height1 = fb_para.height;
+	}
+
+	xoff1 = (fb_para.width - width1) / 2;
+	yoff1 = (fb_para.height - height1) / 2;
+
+	if ((float) jpeg2->width / fb_para.width > (float) jpeg2->height / fb_para.height) {
+		width2 = fb_para.width;
+		height2 = (float) fb_para.width / jpeg2->width * jpeg2->height;
+	}
+	else {
+		width2 = (float) fb_para.height / jpeg2->height * jpeg2->width;
+		height2 = fb_para.height;
+	}
+
+	xoff2 = (fb_para.width - width2) / 2;
+	yoff2 = (fb_para.height - height2) / 2;
+
+	for (sf = .01f; sf <= 1.0f; sf += .005f) {
+		scn_win.width = width2 * sf;
+		scn_win.height = height2 * sf;
+		scn_win.x = xoff2;
+		scn_win.y = yoff2;
+
+		disp_set_scn_window(layer2->layer, &scn_win);
+		disp_set_alpha(layer2->layer, sf * 255);
+
+		if (sf < 1.0f) {
+			scn_win.width = width1 * (1.0f - sf);
+			scn_win.height = height1 * (1.0f - sf);
+			scn_win.x = xoff1 + width1 - scn_win.width;
+			scn_win.y = yoff1 + height1 - scn_win.height;
+
+			disp_set_scn_window(layer1->layer, &scn_win);
 		}
-		else {
-			width = (float) fb_para.height / jpegs->height * jpegs->width;
-			height = fb_para.height;
+
+		usleep(5000);
+	}
+	for (sf = 1.0f; sf > 0; sf -= .005f) {
+		scn_win.width = width2 * sf;
+		scn_win.height = height2 * sf;
+		scn_win.x = xoff2;
+		scn_win.y = yoff2;
+
+		disp_set_scn_window(layer2->layer, &scn_win);
+
+		if (sf < 1.0f) {
+			scn_win.x = xoff2 + scn_win.width;
+			scn_win.y = yoff2 + scn_win.height;
+			scn_win.width = width1 * (1.0f - sf);
+			scn_win.height = height1 * (1.0f - sf);
+
+			disp_set_scn_window(layer1->layer, &scn_win);
+			disp_set_alpha(layer1->layer, (1.0f - sf) * 255);
 		}
 
-		xoff = (fb_para.width - width) / 2;
-		yoff = (fb_para.height - height) / 2;
-
-		disp_set_para(layers->layer, ve_virt2phys(layers->luma_output), ve_virt2phys(layers->chroma_output),
-			layers->color, jpegs->width, jpegs->height,
-			xoff, yoff, width, height);
-
-		for (alpha = 255; alpha >= 0; alpha -= 10) {
-			disp_set_alpha(layers->layer, alpha);
-			usleep(33310);
-		}
+		usleep(5000);
 	}
 }
 
 int main(const int argc, const char **argv)
 {
-	jpeg_t jpegs[2];
 	image_layer layers[2];
 
 	if (argc < 3)
@@ -354,13 +420,17 @@ int main(const int argc, const char **argv)
 	if (!disp_open())
 		err(EXIT_FAILURE, "Can't open /dev/disp or /dev/fb0\n");
 
-	init_jpeg(&jpegs[0], &layers[0], argv[1]);
-	init_jpeg(&jpegs[1], &layers[1], argv[2]);
+	init_jpeg(&layers[0], argv[1]);
+	init_jpeg(&layers[1], argv[2]);
 
-	show_jpegs(jpegs, layers, 2);
+	show_jpeg(&layers[0]);
+	sleep(1);
+	show_jpeg(&layers[1]);
+	transition_layers(&layers[0], &layers[1]);
 
-	free_jpeg(&jpegs[1], &layers[1]);
-	free_jpeg(&jpegs[2], &layers[2]);
+	free_jpeg(&layers[0]);
+	sleep(2);
+	free_jpeg(&layers[1]);
 
 	disp_close();
 	ve_close();

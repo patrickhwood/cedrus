@@ -133,6 +133,18 @@ int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t ch
 	return 1;
 }
 
+int disp_set_scn_window(const int layer, const __disp_rect_t *scn_win)
+{
+	uint32_t args[4];
+
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = (unsigned long) scn_win;
+	args[3] = 0;
+	ioctl(fbdev, FBIO_WAITFORVSYNC, args);
+	return ioctl(fd, DISP_CMD_LAYER_SET_SCN_WINDOW, args);
+}
+
 int disp_set_alpha(const int layer, const int alpha)
 {
 	uint32_t args[4];

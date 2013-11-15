@@ -240,7 +240,14 @@ void decode_jpeg(struct jpeg_t *jpeg)
 
 	if (!disp_open())
 	{
-		fprintf(stderr, "Can't open /dev/disp\n");
+		fprintf(stderr, "Can't open /dev/disp or /dev/fb0\n");
+		return;
+	}
+
+	int layer = disp_layer_open();
+	if (layer <= 0) {
+		fprintf(stderr, "Can't open layer\n");
+		disp_close();
 		return;
 	}
 
@@ -275,16 +282,17 @@ void decode_jpeg(struct jpeg_t *jpeg)
 	xoff = (fb_para.width - width) / 2;
 	yoff = (fb_para.height - height) / 2;
 
-	disp_set_para(ve_virt2phys(luma_output), ve_virt2phys(chroma_output),
+	disp_set_para(layer, ve_virt2phys(luma_output), ve_virt2phys(chroma_output),
 			color, jpeg->width, jpeg->height,
 			xoff, yoff, width, height);
 
 	int alpha;
 	for (alpha = 255; alpha >= 0; alpha--) {
-		disp_set_alpha(alpha);
+		disp_set_alpha(layer, alpha);
 		usleep(13334);
 	}
 
+	disp_layer_close(layer);
 	disp_close();
 
 	ve_free(input_buffer);

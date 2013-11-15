@@ -32,7 +32,6 @@
 
 static int fd = -1;
 static int fbdev = -1;
-static int layer = -1;
 static int last_id = -1;
 
 int disp_open(void)
@@ -47,6 +46,13 @@ int disp_open(void)
 		return 0;
 	}
 
+	return 1;
+}
+
+int disp_layer_open(void)
+{
+	int layer;
+
 	uint32_t args[4];
 
 	args[0] = 0;
@@ -55,11 +61,7 @@ int disp_open(void)
 	args[3] = 0;
 	layer = ioctl(fd, DISP_CMD_LAYER_REQUEST, args);
 
-	if (layer > 0)
-		return 1;
-
-	close(fd);
-	return 0;
+	return layer;
 }
 
 __disp_fb_create_para_t fb_get_para(const int fb)
@@ -76,7 +78,7 @@ __disp_fb_create_para_t fb_get_para(const int fb)
 	return fb_info;
 }
 
-int disp_set_para(const uint32_t luma_buffer, const uint32_t chroma_buffer,
+int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int color_format, const int width, const int height,
 			const int out_x, const int out_y, const int out_width, const int out_height)
 {
@@ -131,7 +133,7 @@ int disp_set_para(const uint32_t luma_buffer, const uint32_t chroma_buffer,
 	return 1;
 }
 
-int disp_set_alpha(const int alpha)
+int disp_set_alpha(const int layer, const int alpha)
 {
 	uint32_t args[4];
 
@@ -143,7 +145,7 @@ int disp_set_alpha(const int alpha)
 	return ioctl(fd, DISP_CMD_LAYER_SET_ALPHA_VALUE, args);
 }
 
-int disp_new_frame(const uint32_t luma_buffer, const uint32_t chroma_buffer,
+int disp_new_frame(const int layer, const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int id, const int frame_rate)
 {
 	uint32_t args[4], i = 0;
@@ -173,21 +175,27 @@ int disp_new_frame(const uint32_t luma_buffer, const uint32_t chroma_buffer,
 	return 1;
 }
 
-void disp_close(void)
+void disp_layer_close(const int layer)
 {
 	uint32_t args[4];
 
-	if (fd >= 0) {
-		args[0] = 0;
-		args[1] = layer;
-		args[2] = 0;
-		args[3] = 0;
-		ioctl(fd, DISP_CMD_LAYER_CLOSE, args);
-		ioctl(fd, DISP_CMD_VIDEO_STOP, args);
-		ioctl(fd, DISP_CMD_LAYER_RELEASE, args);
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = 0;
+	args[3] = 0;
+	ioctl(fd, DISP_CMD_LAYER_CLOSE, args);
+	ioctl(fd, DISP_CMD_VIDEO_STOP, args);
+	ioctl(fd, DISP_CMD_LAYER_RELEASE, args);
+}
 
+void disp_close()
+{
+	if (fd >= 0) {
 		close(fd);
+		fd = -1;
 	}
-	if (fbdev >= 0)
+	if (fbdev >= 0) {
 		close(fbdev);
+		fbdev = -1;
+	}
 }

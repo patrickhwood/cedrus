@@ -332,7 +332,6 @@ void transition_layers(image_layer *layer1, image_layer *layer2)
 	jpeg_t *jpeg1 = &layer1->jpeg;
 	jpeg_t *jpeg2 = &layer2->jpeg;
 	__disp_fb_create_para_t fb_para = fb_get_para(0);
-	__disp_rect_t scn_win;
 	int width1, height1, width2, height2;
 	int xoff1, yoff1, xoff2, yoff2;
 	float sf;
@@ -361,45 +360,13 @@ void transition_layers(image_layer *layer1, image_layer *layer2)
 	xoff2 = (fb_para.width - width2) / 2;
 	yoff2 = (fb_para.height - height2) / 2;
 
-	for (sf = .01f; sf <= 1.0f; sf += .005f) {
-		scn_win.width = width2 * sf;
-		scn_win.height = height2 * sf;
-		scn_win.x = xoff2;
-		scn_win.y = yoff2;
+	for (sf = .01f; sf <= 1.0f; sf += .02f) {
+		disp_wait_for_vsync();
+		disp_set_xoff(layer2->layer, xoff2 - width2 * (1.0f - sf));
+		disp_set_xoff(layer1->layer, xoff1 + width2 * sf);
+		disp_set_alpha(layer2, 0);
 
-		disp_set_scn_window(layer2->layer, &scn_win);
-		disp_set_alpha(layer2->layer, sf * 255);
-
-		if (sf < 1.0f) {
-			scn_win.width = width1 * (1.0f - sf);
-			scn_win.height = height1 * (1.0f - sf);
-			scn_win.x = xoff1 + width1 - scn_win.width;
-			scn_win.y = yoff1 + height1 - scn_win.height;
-
-			disp_set_scn_window(layer1->layer, &scn_win);
-		}
-
-		usleep(5000);
-	}
-	for (sf = 1.0f; sf > 0; sf -= .005f) {
-		scn_win.width = width2 * sf;
-		scn_win.height = height2 * sf;
-		scn_win.x = xoff2;
-		scn_win.y = yoff2;
-
-		disp_set_scn_window(layer2->layer, &scn_win);
-
-		if (sf < 1.0f) {
-			scn_win.x = xoff2 + scn_win.width;
-			scn_win.y = yoff2 + scn_win.height;
-			scn_win.width = width1 * (1.0f - sf);
-			scn_win.height = height1 * (1.0f - sf);
-
-			disp_set_scn_window(layer1->layer, &scn_win);
-			disp_set_alpha(layer1->layer, (1.0f - sf) * 255);
-		}
-
-		usleep(5000);
+		usleep(2000);
 	}
 }
 

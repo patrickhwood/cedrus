@@ -78,6 +78,12 @@ __disp_fb_create_para_t fb_get_para(const int fb)
 	return fb_info;
 }
 
+void disp_wait_for_vsync()
+{
+	uint32_t args[4];
+	ioctl(fbdev, FBIO_WAITFORVSYNC, args);
+}
+
 int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int color_format, const int width, const int height,
 			const int out_x, const int out_y, const int out_width, const int out_height)
@@ -126,12 +132,15 @@ int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t ch
 	args[3] = 0;
 	ioctl(fd, DISP_CMD_LAYER_SET_PARA, args);
 	ioctl(fd, DISP_CMD_LAYER_TOP, args);
+	args[2] = (unsigned long)2;
+	ioctl(fd, DISP_CMD_LAYER_SET_SMOOTH, args);
 
 	ioctl(fd, DISP_CMD_VIDEO_START, args);
 	ioctl(fd, DISP_CMD_LAYER_OPEN, args);
 
 	return 1;
 }
+
 
 int disp_set_scn_window(const int layer, const __disp_rect_t *scn_win)
 {
@@ -141,7 +150,28 @@ int disp_set_scn_window(const int layer, const __disp_rect_t *scn_win)
 	args[1] = layer;
 	args[2] = (unsigned long) scn_win;
 	args[3] = 0;
-	ioctl(fbdev, FBIO_WAITFORVSYNC, args);
+	return ioctl(fd, DISP_CMD_LAYER_SET_SCN_WINDOW, args);
+}
+
+int disp_set_xoff(const int layer, const int xoff)
+{
+	uint32_t args[4];
+	__disp_layer_info_t layer_info;
+
+	memset(&layer_info, 0, sizeof(layer_info));
+
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = (unsigned long)(&layer_info);
+	args[3] = 0;
+	ioctl(fd, DISP_CMD_LAYER_GET_PARA, args);
+
+	layer_info.scn_win.x = xoff;
+
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = (unsigned long) &layer_info.scn_win;
+	args[3] = 0;
 	return ioctl(fd, DISP_CMD_LAYER_SET_SCN_WINDOW, args);
 }
 
@@ -153,7 +183,6 @@ int disp_set_alpha(const int layer, const int alpha)
 	args[1] = layer;
 	args[2] = alpha;
 	args[3] = 0;
-	ioctl(fbdev, FBIO_WAITFORVSYNC, args);
 	return ioctl(fd, DISP_CMD_LAYER_SET_ALPHA_VALUE, args);
 }
 

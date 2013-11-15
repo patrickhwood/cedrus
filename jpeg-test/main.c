@@ -279,7 +279,11 @@ void decode_jpeg(struct jpeg_t *jpeg)
 			color, jpeg->width, jpeg->height,
 			xoff, yoff, width, height);
 
-	getchar();
+	int alpha;
+	for (alpha = 255; alpha >= 0; alpha--) {
+		disp_set_alpha(alpha);
+		usleep(13334);
+	}
 
 	disp_close();
 

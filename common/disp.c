@@ -175,6 +175,28 @@ int disp_set_xoff(const int layer, const int xoff)
 	return ioctl(fd, DISP_CMD_LAYER_SET_SCN_WINDOW, args);
 }
 
+int disp_set_yoff(const int layer, const int yoff)
+{
+	uint32_t args[4];
+	__disp_layer_info_t layer_info;
+
+	memset(&layer_info, 0, sizeof(layer_info));
+
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = (unsigned long)(&layer_info);
+	args[3] = 0;
+	ioctl(fd, DISP_CMD_LAYER_GET_PARA, args);
+
+	layer_info.scn_win.y = yoff;
+
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = (unsigned long) &layer_info.scn_win;
+	args[3] = 0;
+	return ioctl(fd, DISP_CMD_LAYER_SET_SCN_WINDOW, args);
+}
+
 int disp_set_alpha(const int layer, const int alpha)
 {
 	uint32_t args[4];

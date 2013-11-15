@@ -43,7 +43,7 @@
 #include "io.h"
 #include "disp.h"
 
-void set_quantization_tables(struct jpeg_t *jpeg, void *regs)
+void set_quantization_tables(jpeg_t *jpeg, void *regs)
 {
 	int i;
 	for (i = 0; i < 64; i++)
@@ -52,7 +52,7 @@ void set_quantization_tables(struct jpeg_t *jpeg, void *regs)
 		writel(regs + 0x100 + 0x80, (uint32_t)(i) << 8 | jpeg->quant[1]->coeff[i]);
 }
 
-void set_huffman_tables(struct jpeg_t *jpeg, void *regs)
+void set_huffman_tables(jpeg_t *jpeg, void *regs)
 {
 	uint32_t buffer[512];
 	memset(buffer, 0, 4*512);
@@ -93,7 +93,7 @@ void set_huffman_tables(struct jpeg_t *jpeg, void *regs)
 	}
 }
 
-void set_format(struct jpeg_t *jpeg, void *regs)
+void set_format(jpeg_t *jpeg, void *regs)
 {
 	uint8_t fmt = (jpeg->comp[0].samp_h << 4) | jpeg->comp[0].samp_v;
 
@@ -114,14 +114,14 @@ void set_format(struct jpeg_t *jpeg, void *regs)
 	}
 }
 
-void set_size(struct jpeg_t *jpeg, void *regs)
+void set_size(jpeg_t *jpeg, void *regs)
 {
 	uint16_t h = (jpeg->height - 1) / (8 * jpeg->comp[0].samp_v);
 	uint16_t w = (jpeg->width - 1) / (8 * jpeg->comp[0].samp_h);
 	writel(regs + 0x100 + 0xb8, (uint32_t)h << 16 | w);
 }
 
-void output_ppm(FILE *file, struct jpeg_t *jpeg, uint8_t *luma_buffer, uint8_t *chroma_buffer)
+void output_ppm(FILE *file, jpeg_t *jpeg, uint8_t *luma_buffer, uint8_t *chroma_buffer)
 {
 	fprintf(file, "P3\n%u %u\n255\n", jpeg->width, jpeg->height);
 	int x, y, i = 0;
@@ -154,20 +154,25 @@ void output_ppm(FILE *file, struct jpeg_t *jpeg, uint8_t *luma_buffer, uint8_t *
 	fprintf(file, "\n");
 }
 
-void decode_jpeg(struct jpeg_t *jpeg)
+typedef struct {
+	int layer;
+	int color;
+	uint8_t *luma_output;
+	uint8_t *chroma_output;
+} image_layer;
+
+void decode_jpeg(jpeg_t *jpeg, image_layer *layer)
 {
 	long long startt, loadt, decodet;
 	struct timeb tb;
-	if (!ve_open())
-		err(EXIT_FAILURE, "Can't open VE");
 
 	void *ve_regs = ve_get_regs();
 
 	int input_size =(jpeg->data_len + 65535) & ~65535;
 	uint8_t *input_buffer = ve_malloc(input_size);
 	int output_size = ((jpeg->width + 31) & ~31) * ((jpeg->height + 31) & ~31);
-	uint8_t *luma_output = ve_malloc(output_size);
-	uint8_t *chroma_output = ve_malloc(output_size);
+	layer->luma_output = ve_malloc(output_size);
+	layer->chroma_output = ve_malloc(output_size);
 	memcpy(input_buffer, jpeg->data, jpeg->data_len);
 	ve_flush_cache(input_buffer, jpeg->data_len);
 
@@ -183,8 +188,8 @@ void decode_jpeg(struct jpeg_t *jpeg)
 	set_format(jpeg, ve_regs);
 
 	// set output buffers (Luma / Croma)
-	writel(ve_regs + 0x100 + 0xcc, ve_virt2phys(luma_output));
-	writel(ve_regs + 0x100 + 0xd0, ve_virt2phys(chroma_output));
+	writel(ve_regs + 0x100 + 0xcc, ve_virt2phys(layer->luma_output));
+	writel(ve_regs + 0x100 + 0xd0, ve_virt2phys(layer->chroma_output));
 
 	// set size
 	set_size(jpeg, ve_regs);
@@ -232,88 +237,19 @@ void decode_jpeg(struct jpeg_t *jpeg)
 	// stop MPEG engine
 	writel(ve_regs + 0x0, 0x00130007);
 
-	//output_ppm(stdout, jpeg, output, output + (output_buf_size / 2));
+	// output_ppm(stdout, jpeg, output, output + (output_buf_size / 2));
 
 	fprintf (stderr, "total time: %lld msec, decode time: %lld msec\n", decodet - startt, decodet - loadt);
 	fflush (stderr);
-	sleep (1);
-
-	if (!disp_open())
-	{
-		fprintf(stderr, "Can't open /dev/disp or /dev/fb0\n");
-		return;
-	}
-
-	int layer = disp_layer_open();
-	if (layer <= 0) {
-		fprintf(stderr, "Can't open layer\n");
-		disp_close();
-		return;
-	}
-
-	int color;
-	switch ((jpeg->comp[0].samp_h << 4) | jpeg->comp[0].samp_v)
-	{
-	case 0x11:
-	case 0x21:
-		color = COLOR_YUV422;
-		break;
-	case 0x12:
-	case 0x22:
-	default:
-		color = COLOR_YUV420;
-		break;
-	}
-
-	__disp_fb_create_para_t fb_para = fb_get_para(0);
-
-	int width, height;
-	int xoff, yoff;
-
-	if ((float) jpeg->width / fb_para.width > (float) jpeg->height / fb_para.height) {
-		width = fb_para.width;
-		height = (float) fb_para.width / jpeg->width * jpeg->height;
-	}
-	else {
-		width = (float) fb_para.height / jpeg->height * jpeg->width;
-		height = fb_para.height;
-	}
-
-	xoff = (fb_para.width - width) / 2;
-	yoff = (fb_para.height - height) / 2;
-
-	disp_set_para(layer, ve_virt2phys(luma_output), ve_virt2phys(chroma_output),
-			color, jpeg->width, jpeg->height,
-			xoff, yoff, width, height);
-
-	int alpha;
-	for (alpha = 255; alpha >= 0; alpha--) {
-		disp_set_alpha(layer, alpha);
-		usleep(13334);
-	}
-
-	disp_layer_close(layer);
-	disp_close();
 
 	ve_free(input_buffer);
-	ve_free(luma_output);
-	ve_free(chroma_output);
-	ve_close();
 }
 
-int main(const int argc, const char **argv)
+void init_jpeg(jpeg_t *jpeg, image_layer *layer, const char *filename)
 {
+	uint8_t *data;
 	int in;
 	struct stat s;
-	uint8_t *data;
-
-	if (argc < 2)
-	{
-		fprintf(stderr, "Usage: %s infile.jpg\n", argv[0]);
-		exit(EXIT_FAILURE);
-	}
-
-	const char *filename = argv[1];
 
 	if ((in = open(filename, O_RDONLY)) == -1)
 		err(EXIT_FAILURE, "%s", filename);
@@ -327,16 +263,107 @@ int main(const int argc, const char **argv)
 	if ((data = mmap(NULL, s.st_size, PROT_READ, MAP_SHARED, in, 0)) == MAP_FAILED)
 		err(EXIT_FAILURE, "mmap %s", filename);
 
-	struct jpeg_t jpeg ;
-	memset(&jpeg, 0, sizeof(jpeg));
-	if (!parse_jpeg(&jpeg, data, s.st_size))
+	memset(jpeg, 0, sizeof(jpeg_t));
+	if (!parse_jpeg(jpeg, data, s.st_size))
 		warnx("Can't parse JPEG");
 
-	//dump_jpeg(&jpeg);
-	decode_jpeg(&jpeg);
-
+	decode_jpeg(jpeg, layer);
 	munmap(data, s.st_size);
 	close(in);
+
+	layer->layer = disp_layer_open();
+	if (layer->layer <= 0) {
+		fprintf(stderr, "Can't open layer\n");
+		disp_close();
+		return;
+	}
+
+	switch ((jpeg->comp[0].samp_h << 4) | jpeg->comp[0].samp_v)
+	{
+	case 0x11:
+	case 0x21:
+		layer->color = COLOR_YUV422;
+		break;
+	case 0x12:
+	case 0x22:
+	default:
+		layer->color = COLOR_YUV420;
+		break;
+	}
+}
+
+void free_jpeg(jpeg_t *jpeg, image_layer *layer)
+{
+
+	disp_layer_close(layer->layer);
+
+	ve_free(layer->luma_output);
+	ve_free(layer->chroma_output);
+}
+
+void show_jpegs(jpeg_t *jpegs, image_layer *layers, int nlayers)
+{
+	int alpha;
+	int i;
+
+	for (i = 0; i < nlayers; i++, jpegs++, layers++) {
+
+		__disp_fb_create_para_t fb_para = fb_get_para(0);
+
+		int width, height;
+		int xoff, yoff;
+
+		if ((float) jpegs->width / fb_para.width > (float) jpegs->height / fb_para.height) {
+			width = fb_para.width;
+			height = (float) fb_para.width / jpegs->width * jpegs->height;
+		}
+		else {
+			width = (float) fb_para.height / jpegs->height * jpegs->width;
+			height = fb_para.height;
+		}
+
+		xoff = (fb_para.width - width) / 2;
+		yoff = (fb_para.height - height) / 2;
+
+		disp_set_para(layers->layer, ve_virt2phys(layers->luma_output), ve_virt2phys(layers->chroma_output),
+			layers->color, jpegs->width, jpegs->height,
+			xoff, yoff, width, height);
+
+		for (alpha = 255; alpha >= 0; alpha -= 10) {
+			disp_set_alpha(layers->layer, alpha);
+			usleep(33310);
+		}
+	}
+}
+
+int main(const int argc, const char **argv)
+{
+	jpeg_t jpegs[2];
+	image_layer layers[2];
+
+	if (argc < 3)
+	{
+		fprintf(stderr, "Usage: %s infile1.jpg infile2.jpg\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
+
+	if (!ve_open())
+		err(EXIT_FAILURE, "Can't open VE");
+
+	if (!disp_open())
+		err(EXIT_FAILURE, "Can't open /dev/disp or /dev/fb0\n");
+
+	init_jpeg(&jpegs[0], &layers[0], argv[1]);
+	init_jpeg(&jpegs[1], &layers[1], argv[2]);
+
+	show_jpegs(jpegs, layers, 2);
+
+	free_jpeg(&jpegs[1], &layers[1]);
+	free_jpeg(&jpegs[2], &layers[2]);
+
+	disp_close();
+	ve_close();
 
 	return EXIT_SUCCESS;
 }

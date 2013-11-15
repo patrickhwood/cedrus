@@ -25,7 +25,7 @@
 
 #include <stdint.h>
 
-struct jpeg_t
+typedef struct jpeg_t
 {
 	uint8_t bits;
 	uint16_t width;
@@ -50,7 +50,7 @@ struct jpeg_t
 	uint16_t restart_interval;
 	uint8_t *data;
 	uint32_t data_len;
-};
+} jpeg_t;
 
 int parse_jpeg(struct jpeg_t *jpeg, const uint8_t *data, const int len);
 void dump_jpeg(const struct jpeg_t *jpeg);

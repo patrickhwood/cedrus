@@ -39,9 +39,9 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include "jpeg.h"
-#include "../common/ve.h"
-#include "../common/io.h"
-#include "../common/disp.h"
+#include "ve.h"
+#include "io.h"
+#include "disp.h"
 
 void set_quantization_tables(struct jpeg_t *jpeg, void *regs)
 {
@@ -258,9 +258,26 @@ void decode_jpeg(struct jpeg_t *jpeg)
 		break;
 	}
 
+	__disp_fb_create_para_t fb_para = fb_get_para(0);
+
+	int width, height;
+	int xoff, yoff;
+
+	if ((float) jpeg->width / fb_para.width > (float) jpeg->height / fb_para.height) {
+		width = fb_para.width;
+		height = (float) fb_para.width / jpeg->width * jpeg->height;
+	}
+	else {
+		width = (float) fb_para.height / jpeg->height * jpeg->width;
+		height = fb_para.height;
+	}
+
+	xoff = (fb_para.width - width) / 2;
+	yoff = (fb_para.height - height) / 2;
+
 	disp_set_para(ve_virt2phys(luma_output), ve_virt2phys(chroma_output),
 			color, jpeg->width, jpeg->height,
-			0, 0, 800, 600);
+			xoff, yoff, width, height);
 
 	getchar();
 

@@ -32,6 +32,7 @@ __disp_fb_create_para_t fb_get_para(const int fb);
 int disp_set_para(const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int color_format, const int width, const int height,
 			const int out_x, const int out_y, const int put_width, const int out_height);
+int disp_set_alpha(const int alpha) ;
 int disp_new_frame(const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int id, const int frame_rate);
 void disp_close(void);

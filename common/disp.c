@@ -23,12 +23,15 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stropts.h>
+#include <sys/ioctl.h>
+#include <linux/fb.h>
 #include "disp.h"
 #include "sunxi_disp_ioctl.h"
 
 #define DRAM_OFFSET (0x40000000)
 
 static int fd = -1;
+static int fbdev = -1;
 static int layer = -1;
 static int last_id = -1;
 
@@ -37,6 +40,12 @@ int disp_open(void)
 	fd = open("/dev/disp", O_RDWR);
 	if (fd == -1)
 		return 0;
+
+	fbdev = open("/dev/fb0", O_RDWR);
+	if (fbdev == -1) {
+		close (fd);
+		return 0;
+	}
 
 	uint32_t args[4];
 
@@ -94,6 +103,9 @@ int disp_set_para(const uint32_t luma_buffer, const uint32_t chroma_buffer,
 	layer_info.fb.addr[0] = luma_buffer + DRAM_OFFSET;
 	layer_info.fb.addr[1] = chroma_buffer + DRAM_OFFSET;
 
+	layer_info.alpha_en = 1;
+	layer_info.alpha_val = 255;
+
 	layer_info.fb.cs_mode = DISP_BT601;
 	layer_info.fb.size.width = width;
 	layer_info.fb.size.height = height;
@@ -117,6 +129,18 @@ int disp_set_para(const uint32_t luma_buffer, const uint32_t chroma_buffer,
 	ioctl(fd, DISP_CMD_LAYER_OPEN, args);
 
 	return 1;
+}
+
+int disp_set_alpha(const int alpha)
+{
+	uint32_t args[4];
+
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = alpha;
+	args[3] = 0;
+	ioctl(fbdev, FBIO_WAITFORVSYNC, args);
+	return ioctl(fd, DISP_CMD_LAYER_SET_ALPHA_VALUE, args);
 }
 
 int disp_new_frame(const uint32_t luma_buffer, const uint32_t chroma_buffer,
@@ -153,13 +177,17 @@ void disp_close(void)
 {
 	uint32_t args[4];
 
-	args[0] = 0;
-	args[1] = layer;
-	args[2] = 0;
-	args[3] = 0;
-	ioctl(fd, DISP_CMD_LAYER_CLOSE, args);
-	ioctl(fd, DISP_CMD_VIDEO_STOP, args);
-	ioctl(fd, DISP_CMD_LAYER_RELEASE, args);
+	if (fd >= 0) {
+		args[0] = 0;
+		args[1] = layer;
+		args[2] = 0;
+		args[3] = 0;
+		ioctl(fd, DISP_CMD_LAYER_CLOSE, args);
+		ioctl(fd, DISP_CMD_VIDEO_STOP, args);
+		ioctl(fd, DISP_CMD_LAYER_RELEASE, args);
 
-	close(fd);
+		close(fd);
+	}
+	if (fbdev >= 0)
+		close(fbdev);
 }

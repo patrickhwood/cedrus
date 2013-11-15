@@ -53,6 +53,20 @@ int disp_open(void)
 	return 0;
 }
 
+__disp_fb_create_para_t fb_get_para(const int fb)
+{
+	uint32_t args[4];
+	__disp_fb_create_para_t fb_info;
+	memset(&fb_info, 0, sizeof(fb_info));
+
+	args[0] = fb;
+	args[1] = (unsigned long)(&fb_info);
+	args[2] = 0;
+	args[3] = 0;
+	ioctl(fd, DISP_CMD_FB_GET_PARA, args);
+	return fb_info;
+}
+
 int disp_set_para(const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int color_format, const int width, const int height,
 			const int out_x, const int out_y, const int out_width, const int out_height)

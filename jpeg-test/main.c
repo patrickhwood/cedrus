@@ -324,84 +324,22 @@ void show_jpeg(image_layer *layer)
 
 	disp_set_para(layer->layer, ve_virt2phys(layer->luma_output), ve_virt2phys(layer->chroma_output),
 		layer->color, jpeg->width, jpeg->height,
-		xoff, yoff, width, height);
+		xoff, yoff, width, height, 0);
 }
 
 void transition_layers(image_layer *layer1, image_layer *layer2)
 {
-	jpeg_t *jpeg1 = &layer1->jpeg;
-	jpeg_t *jpeg2 = &layer2->jpeg;
-	__disp_fb_create_para_t fb_para = fb_get_para(0);
-	__disp_rect_t scn_win;
-	int width1, height1, width2, height2;
-	int xoff1, yoff1, xoff2, yoff2;
-	float sf;
+	int alpha;
 
-	if ((float) jpeg1->width / fb_para.width > (float) jpeg1->height / fb_para.height) {
-		width1 = fb_para.width;
-		height1 = (float) fb_para.width / jpeg1->width * jpeg1->height;
-	}
-	else {
-		width1 = (float) fb_para.height / jpeg1->height * jpeg1->width;
-		height1 = fb_para.height;
-	}
-
-	xoff1 = (fb_para.width - width1) / 2;
-	yoff1 = (fb_para.height - height1) / 2;
-
-	if ((float) jpeg2->width / fb_para.width > (float) jpeg2->height / fb_para.height) {
-		width2 = fb_para.width;
-		height2 = (float) fb_para.width / jpeg2->width * jpeg2->height;
-	}
-	else {
-		width2 = (float) fb_para.height / jpeg2->height * jpeg2->width;
-		height2 = fb_para.height;
-	}
-
-	xoff2 = (fb_para.width - width2) / 2;
-	yoff2 = (fb_para.height - height2) / 2;
-
-	for (sf = .01f; sf <= 1.0f; sf += .005f) {
-		scn_win.width = width2 * sf;
-		scn_win.height = height2 * sf;
-		scn_win.x = xoff2;
-		scn_win.y = yoff2;
-
+	disp_set_layer_top(layer1->layer);
+	for (alpha = 255; alpha >= 0; alpha -= 5) {
 		disp_wait_for_vsync();
-		disp_set_scn_window(layer2->layer, &scn_win);
-		disp_set_alpha(layer2->layer, sf * 255);
-
-		if (sf < 1.0f) {
-			scn_win.width = width1 * (1.0f - sf);
-			scn_win.height = height1 * (1.0f - sf);
-			scn_win.x = xoff1 + width1 - scn_win.width;
-			scn_win.y = yoff1 + height1 - scn_win.height;
-
-			disp_set_scn_window(layer1->layer, &scn_win);
-		}
-
-		usleep(5000);
+		disp_set_alpha(layer1->layer, alpha);
 	}
-	for (sf = 1.0f; sf > 0; sf -= .005f) {
-		scn_win.width = width2 * sf;
-		scn_win.height = height2 * sf;
-		scn_win.x = xoff2;
-		scn_win.y = yoff2;
-
+	disp_set_layer_top(layer2->layer);
+	for (alpha = 0; alpha <= 255; alpha += 5) {
 		disp_wait_for_vsync();
-		disp_set_scn_window(layer2->layer, &scn_win);
-
-		if (sf < 1.0f) {
-			scn_win.x = xoff2 + scn_win.width;
-			scn_win.y = yoff2 + scn_win.height;
-			scn_win.width = width1 * (1.0f - sf);
-			scn_win.height = height1 * (1.0f - sf);
-
-			disp_set_scn_window(layer1->layer, &scn_win);
-			disp_set_alpha(layer1->layer, (1.0f - sf) * 255);
-		}
-
-		usleep(5000);
+		disp_set_alpha(layer2->layer, alpha);
 	}
 }
 
@@ -426,12 +364,16 @@ int main(const int argc, const char **argv)
 	init_jpeg(&layers[1], argv[2]);
 
 	show_jpeg(&layers[0]);
-	sleep(1);
 	show_jpeg(&layers[1]);
-	transition_layers(&layers[0], &layers[1]);
-
+	disp_set_layer_top(layers[0].layer);
+	disp_set_alpha(layers[0].layer, 255);
+	while (1) {
+		sleep(5);
+		transition_layers(&layers[0], &layers[1]);
+		sleep(5);
+		transition_layers(&layers[1], &layers[0]);
+	}
 	free_jpeg(&layers[0]);
-	sleep(2);
 	free_jpeg(&layers[1]);
 
 	disp_close();

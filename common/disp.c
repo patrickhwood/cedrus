@@ -86,7 +86,7 @@ void disp_wait_for_vsync()
 
 int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int color_format, const int width, const int height,
-			const int out_x, const int out_y, const int out_width, const int out_height)
+			const int out_x, const int out_y, const int out_width, const int out_height, const int alpha)
 {
 	uint32_t args[4];
 	__disp_layer_info_t layer_info;
@@ -112,7 +112,7 @@ int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t ch
 	layer_info.fb.addr[1] = chroma_buffer + DRAM_OFFSET;
 
 	layer_info.alpha_en = 1;
-	layer_info.alpha_val = 255;
+	layer_info.alpha_val = alpha;
 
 	layer_info.fb.cs_mode = DISP_BT601;
 	layer_info.fb.size.width = width;
@@ -130,6 +130,8 @@ int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t ch
 	args[1] = layer;
 	args[2] = (unsigned long)(&layer_info);
 	args[3] = 0;
+
+	disp_wait_for_vsync();
 	ioctl(fd, DISP_CMD_LAYER_SET_PARA, args);
 	ioctl(fd, DISP_CMD_LAYER_TOP, args);
 	args[2] = (unsigned long)2;
@@ -141,6 +143,27 @@ int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t ch
 	return 1;
 }
 
+int disp_set_layer_top(const int layer)
+{
+	uint32_t args[4];
+
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = 0;
+	args[3] = 0;
+	return ioctl(fd, DISP_CMD_LAYER_TOP, args);
+}
+
+int disp_set_layer_bottom(const int layer)
+{
+	uint32_t args[4];
+
+	args[0] = 0;
+	args[1] = layer;
+	args[2] = 0;
+	args[3] = 0;
+	return ioctl(fd, DISP_CMD_LAYER_BOTTOM, args);
+}
 
 int disp_set_scn_window(const int layer, const __disp_rect_t *scn_win)
 {
@@ -246,6 +269,8 @@ void disp_layer_close(const int layer)
 	args[1] = layer;
 	args[2] = 0;
 	args[3] = 0;
+
+	disp_wait_for_vsync();
 	ioctl(fd, DISP_CMD_LAYER_CLOSE, args);
 	ioctl(fd, DISP_CMD_VIDEO_STOP, args);
 	ioctl(fd, DISP_CMD_LAYER_RELEASE, args);

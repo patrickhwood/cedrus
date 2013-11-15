@@ -33,7 +33,9 @@ __disp_fb_create_para_t fb_get_para(const int fb);
 void disp_wait_for_vsync();
 int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t chroma_buffer,
 			const int color_format, const int width, const int height,
-			const int out_x, const int out_y, const int put_width, const int out_height);
+			const int out_x, const int out_y, const int put_width, const int out_height, const int alpha);
+int disp_set_layer_top(const int layer);
+int disp_set_layer_bottom(const int layer);
 int disp_set_scn_window(const int layer, const __disp_rect_t *scn_win);
 int disp_set_xoff(const int layer, const int xoff);
 int disp_set_yoff(const int layer, const int yoff);

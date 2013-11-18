@@ -133,14 +133,14 @@ void transition_layers(image_layer *layer1, image_layer *layer2)
 
 	if (layer1->layer > 0) {
 		disp_set_layer_top(layer1->layer);
-		for (alpha = 255; alpha >= 0; alpha -= 5) {
+		for (alpha = 255; alpha >= 0; alpha -= 10) {
 			disp_wait_for_vsync();
 			disp_set_alpha(layer1->layer, alpha);
 		}
 	}
 	if (layer2->layer > 0) {
 		disp_set_layer_top(layer2->layer);
-		for (alpha = 0; alpha <= 255; alpha += 5) {
+		for (alpha = 0; alpha <= 255; alpha += 10) {
 			disp_wait_for_vsync();
 			disp_set_alpha(layer2->layer, alpha);
 		}

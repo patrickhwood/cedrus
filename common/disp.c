@@ -134,10 +134,6 @@ int disp_set_para(const int layer, const uint32_t luma_buffer, const uint32_t ch
 	disp_wait_for_vsync();
 	ioctl(fd, DISP_CMD_LAYER_SET_PARA, args);
 	ioctl(fd, DISP_CMD_LAYER_TOP, args);
-	args[2] = (unsigned long)2;
-	ioctl(fd, DISP_CMD_LAYER_SET_SMOOTH, args);
-
-	ioctl(fd, DISP_CMD_VIDEO_START, args);
 	ioctl(fd, DISP_CMD_LAYER_OPEN, args);
 
 	return 1;
@@ -272,7 +268,7 @@ void disp_layer_close(const int layer)
 
 	disp_wait_for_vsync();
 	ioctl(fd, DISP_CMD_LAYER_CLOSE, args);
-	ioctl(fd, DISP_CMD_VIDEO_STOP, args);
+	disp_wait_for_vsync();
 	ioctl(fd, DISP_CMD_LAYER_RELEASE, args);
 }
 

@@ -36,6 +36,47 @@
 #include "ve.h"
 #include "show.h"
 
+#include "slideshow.h"
+
+void slideshow ()
+{
+	void *show = init_slideshow("/tmp");
+	int ret = set_slide (show, 1);
+	if (ret < 0)
+		fprintf (stderr, "set_slide returned -1\n");
+	while (1) {
+		int c = getchar();
+		if (c < 0)
+			break;
+		if (c >= 'a' && c <= 'z') {
+			if (cur_slide (show) == c - 'a' + 1)
+				// skip current slide
+				continue;
+
+			ret = set_slide (show, c - 'a' + 1);
+			if (ret < 0)
+				fprintf (stderr, "set_slide returned -1\n");
+		}
+		else if (c == 'N') {
+			int i = cur_slide (show);
+			
+			ret = set_slide (show, i + 1);
+			if (ret < 0)
+				fprintf (stderr, "set_slide returned -1\n");
+		}
+		else if (c == 'P') {
+			int i = cur_slide (show);
+			
+			ret = set_slide (show, i - 1);
+			if (ret < 0)
+				fprintf (stderr, "set_slide returned -1\n");
+		}
+	}
+	end_slideshow(show);
+	free_slideshow(show);
+	exit (0);
+}
+
 int main(const int argc, const char **argv)
 {
 	image_layer layers[2];
@@ -53,6 +94,8 @@ int main(const int argc, const char **argv)
 
 	if (!disp_open())
 		err(EXIT_FAILURE, "Can't open /dev/disp or /dev/fb0\n");
+
+slideshow();
 
 	if ((exitcode = init_jpeg(&layers[0], argv[1])) < 0)
 		goto error;

@@ -38,14 +38,16 @@
 
 #include "slideshow.h"
 
-void slideshow ()
+void slideshow (const char *dir)
 {
-	void *show = init_slideshow("/tmp");
+	void *show = init_slideshow(dir);
 	int ret = set_slide (show, 1);
 	if (ret < 0)
 		fprintf (stderr, "set_slide returned -1\n");
+
+	int c = 'N';
 	while (1) {
-		int c = getchar();
+		// c = getchar();
 		if (c < 0)
 			break;
 		if (c >= 'a' && c <= 'z') {
@@ -61,33 +63,32 @@ void slideshow ()
 			int i = cur_slide (show);
 			
 			ret = set_slide (show, i + 1);
-			if (ret < 0)
+			if (ret < 0) {
 				fprintf (stderr, "set_slide returned -1\n");
+				c = 'P';
+			}
 		}
 		else if (c == 'P') {
 			int i = cur_slide (show);
 			
 			ret = set_slide (show, i - 1);
-			if (ret < 0)
+			if (ret < 0) {
 				fprintf (stderr, "set_slide returned -1\n");
+				c = 'N';
+			}
 		}
 	}
 	end_slideshow(show);
 	free_slideshow(show);
-	exit (0);
+	return;
 }
 
 int main(const int argc, const char **argv)
 {
-	image_layer layers[2];
-	int exitcode = 0;
-
-	if (argc < 3)
-	{
-		fprintf(stderr, "Usage: %s infile1.jpg infile2.jpg\n", argv[0]);
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s slideshow-dir\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
-
 
 	if (!ve_open())
 		err(EXIT_FAILURE, "Can't open VE");
@@ -95,31 +96,10 @@ int main(const int argc, const char **argv)
 	if (!disp_open())
 		err(EXIT_FAILURE, "Can't open /dev/disp or /dev/fb0\n");
 
-slideshow();
+	slideshow(argv[1]);
 
-	if ((exitcode = init_jpeg(&layers[0], argv[1])) < 0)
-		goto error;
-	if ((exitcode = init_jpeg(&layers[1], argv[2])) < 0) {
-		free_jpeg(&layers[0]);
-		goto error;
-	}
-
-	show_jpeg(&layers[0]);
-	show_jpeg(&layers[1]);
-	disp_set_layer_top(layers[0].layer);
-	disp_set_alpha(layers[0].layer, 255);
-	while (1) {
-		sleep(5);
-		transition_layers(&layers[0], &layers[1]);
-		sleep(5);
-		transition_layers(&layers[1], &layers[0]);
-	}
-	free_jpeg(&layers[0]);
-	free_jpeg(&layers[1]);
-
-error:
 	disp_close();
 	ve_close();
 
-	return exitcode;
+	return 0;
 }

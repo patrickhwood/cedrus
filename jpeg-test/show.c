@@ -95,10 +95,12 @@ int init_jpeg(image_layer *layer, const char *filename)
 
 void free_jpeg(image_layer *layer)
 {
-	disp_layer_close(layer->layer);
+	if (layer->layer > 0) {
+		disp_layer_close(layer->layer);
 
-	ve_free(layer->luma_output);
-	ve_free(layer->chroma_output);
+		ve_free(layer->luma_output);
+		ve_free(layer->chroma_output);
+	}
 }
 
 void show_jpeg(image_layer *layer)

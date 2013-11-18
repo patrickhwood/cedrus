@@ -4,6 +4,7 @@ CFLAGS += -I../common -MD -MP -MQ $@
 MAKEFLAGS += -rR --no-print-directory
 
 OBJ = $(addsuffix .o,$(basename $(SRC)))
+LIBOBJ = $(addsuffix .o,$(basename $(LIBSRC)))
 
 ifdef V
 	ifeq ("$(origin V)", "command line")
@@ -19,6 +20,12 @@ ifeq ($(VERBOSE), 1)
 else
 	Q = @
 endif
+
+all: $(LIB) $(TARGET)
+
+$(LIB): $(LIBOBJ)
+	@echo "AR $(LIB)"
+	ar rf $(LIB) $(LIBOBJ)
 
 $(TARGET): $(OBJ)
 	@echo "LD $(TARGET)"

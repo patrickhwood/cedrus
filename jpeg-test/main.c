@@ -39,6 +39,7 @@
 int main(const int argc, const char **argv)
 {
 	image_layer layers[2];
+	int exitcode = 0;
 
 	if (argc < 3)
 	{
@@ -53,8 +54,12 @@ int main(const int argc, const char **argv)
 	if (!disp_open())
 		err(EXIT_FAILURE, "Can't open /dev/disp or /dev/fb0\n");
 
-	init_jpeg(&layers[0], argv[1]);
-	init_jpeg(&layers[1], argv[2]);
+	if ((exitcode = init_jpeg(&layers[0], argv[1])) < 0)
+		goto error;
+	if ((exitcode = init_jpeg(&layers[1], argv[2])) < 0) {
+		free_jpeg(&layers[0]);
+		goto error;
+	}
 
 	show_jpeg(&layers[0]);
 	show_jpeg(&layers[1]);
@@ -69,8 +74,9 @@ int main(const int argc, const char **argv)
 	free_jpeg(&layers[0]);
 	free_jpeg(&layers[1]);
 
+error:
 	disp_close();
 	ve_close();
 
-	return EXIT_SUCCESS;
+	return exitcode;
 }

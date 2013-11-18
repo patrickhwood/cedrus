@@ -33,7 +33,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 #include <fcntl.h>
 #include <sys/timeb.h>
 #include <sys/stat.h>
@@ -45,7 +44,7 @@
 #include "decode.h"
 #include "show.h"
 
-void init_jpeg(image_layer *layer, const char *filename)
+int init_jpeg(image_layer *layer, const char *filename)
 {
 	jpeg_t *jpeg = &layer->jpeg;
 	uint8_t *data;
@@ -53,20 +52,20 @@ void init_jpeg(image_layer *layer, const char *filename)
 	struct stat s;
 
 	if ((in = open(filename, O_RDONLY)) == -1)
-		err(EXIT_FAILURE, "%s", filename);
+		return -1;
 
 	if (fstat(in, &s) < 0)
-		err(EXIT_FAILURE, "stat %s", filename);
+		return -2;
 
 	if (s.st_size == 0)
-		errx(EXIT_FAILURE, "%s empty", filename);
+		return -3;
 
 	if ((data = mmap(NULL, s.st_size, PROT_READ, MAP_SHARED, in, 0)) == MAP_FAILED)
-		err(EXIT_FAILURE, "mmap %s", filename);
+		return -4;
 
 	memset(jpeg, 0, sizeof(jpeg_t));
 	if (!parse_jpeg(jpeg, data, s.st_size))
-		warnx("Can't parse JPEG");
+		return -5;
 
 	decode_jpeg(layer);
 	munmap(data, s.st_size);
@@ -76,7 +75,7 @@ void init_jpeg(image_layer *layer, const char *filename)
 	if (layer->layer <= 0) {
 		fprintf(stderr, "Can't open layer\n");
 		disp_close();
-		return;
+		return -6;
 	}
 
 	switch ((jpeg->comp[0].samp_h << 4) | jpeg->comp[0].samp_v)
@@ -91,6 +90,7 @@ void init_jpeg(image_layer *layer, const char *filename)
 		layer->color = COLOR_YUV420;
 		break;
 	}
+	return 0;
 }
 
 void free_jpeg(image_layer *layer)

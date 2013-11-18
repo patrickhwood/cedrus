@@ -1,7 +1,7 @@
 #ifndef __show_h
 #define __show_h
 #include "decode.h"
-void init_jpeg(image_layer *layer, const char *filename);
+int init_jpeg(image_layer *layer, const char *filename);
 void free_jpeg(image_layer *layer);
 void show_jpeg(image_layer *layer);
 void transition_layers(image_layer *layer1, image_layer *layer2);

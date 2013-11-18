@@ -33,7 +33,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 #include <fcntl.h>
 #include <sys/timeb.h>
 #include "jpeg.h"

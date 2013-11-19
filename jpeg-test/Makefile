@@ -29,7 +29,7 @@ $(LIB): $(LIBOBJ)
 
 $(TARGET): $(OBJ)
 	@echo "LD $(TARGET)"
-	$(Q)g++ $(LDFLAGS) $(OBJ) -o $@
+	$(Q)$(GCC) $(LDFLAGS) $(OBJ) -o $@
 
 .PHONY: clean
 clean:
@@ -42,6 +42,6 @@ clean:
 
 %.o: %.c config.mk
 	@echo "CC $<"
-	$(Q)gcc $(CFLAGS) -c $< -o $@
+	$(Q)$(GCC) $(CFLAGS) -c $< -o $@
 
 include $(wildcard $(foreach f,$(OBJ),$(basename $(f)).d))

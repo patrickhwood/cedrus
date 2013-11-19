@@ -45,8 +45,9 @@ void set_quantization_tables(jpeg_t *jpeg, void *regs)
 	int i;
 	for (i = 0; i < 64; i++)
 		writel(regs + 0x100 + 0x80, (uint32_t)(64 + i) << 8 | jpeg->quant[0]->coeff[i]);
-	for (i = 0; i < 64; i++)
-		writel(regs + 0x100 + 0x80, (uint32_t)(i) << 8 | jpeg->quant[1]->coeff[i]);
+	if (jpeg->quant[1])
+		for (i = 0; i < 64; i++)
+			writel(regs + 0x100 + 0x80, (uint32_t)(i) << 8 | jpeg->quant[1]->coeff[i]);
 }
 
 void set_huffman_tables(jpeg_t *jpeg, void *regs)
@@ -197,7 +198,7 @@ void decode_jpeg(image_layer *layer)
 
 	// output_ppm(stdout, jpeg, output, output + (output_buf_size / 2));
 
-	fprintf (stderr, "total time: %lld msec, decode time: %lld msec\n", decodet - startt, decodet - loadt);
+	// fprintf (stderr, "total time: %lld msec, decode time: %lld msec\n", decodet - startt, decodet - loadt);
 	fflush (stderr);
 
 	ve_free(input_buffer);

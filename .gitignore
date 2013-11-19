@@ -4,5 +4,6 @@
 *.d
 *.mpg
 *.MPG
+*.a
 
 !.gitignore

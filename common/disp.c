@@ -37,8 +37,11 @@ static int last_id = -1;
 int disp_open(void)
 {
 	fd = open("/dev/disp", O_RDWR);
-	if (fd == -1)
-		return 0;
+	if (fd == -1) {
+		fd = open("/dev/disp1", O_RDWR);
+		if (fd == -1)
+			return 0;
+	}
 
 	fbdev = open("/dev/fb0", O_RDWR);
 	if (fbdev == -1) {

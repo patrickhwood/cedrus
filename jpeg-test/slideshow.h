@@ -2,6 +2,7 @@ typedef struct {
 	unsigned char *bitmap;
 	int width, height;
 	int xoff, yoff;
+	unsigned char color[4];
 	void *next;
 } bitmap;
 

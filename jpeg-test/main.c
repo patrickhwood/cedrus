@@ -41,7 +41,7 @@
 void slideshow (const char *dir)
 {
 	void *show = init_slideshow(dir);
-	int ret = set_slide (show, 1);
+	int ret = set_slide (show, 1, NULL);
 	if (ret < 0)
 		fprintf (stderr, "set_slide returned -1\n");
 
@@ -55,14 +55,14 @@ void slideshow (const char *dir)
 				// skip current slide
 				continue;
 
-			ret = set_slide (show, c - 'a' + 1);
+			ret = set_slide (show, c - 'a' + 1, NULL);
 			if (ret < 0)
 				fprintf (stderr, "set_slide returned -1\n");
 		}
 		else if (c == 'N') {
 			int i = cur_slide (show);
 			
-			ret = set_slide (show, i + 1);
+			ret = set_slide (show, i + 1, NULL);
 			if (ret < 0) {
 				fprintf (stderr, "set_slide returned -1\n");
 				c = 'P';
@@ -71,7 +71,7 @@ void slideshow (const char *dir)
 		else if (c == 'P') {
 			int i = cur_slide (show);
 			
-			ret = set_slide (show, i - 1);
+			ret = set_slide (show, i - 1, NULL);
 			if (ret < 0) {
 				fprintf (stderr, "set_slide returned -1\n");
 				c = 'N';

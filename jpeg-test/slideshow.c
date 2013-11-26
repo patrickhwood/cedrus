@@ -62,14 +62,16 @@ static void merge_bitmaps(image_layer *layer, bitmap *bitmap)
 	uint8_t *luma = layer->luma_output;
 	uint8_t *chroma = layer->chroma_output;
 
+	// bitmap->color should be in YUV
+
 	for (y = yoff; y < yoff + height && y < jheight; y++) {
 		int cy = y / layer->jpeg.comp[0].samp_v;
 		for (x = xoff; x < xoff + width && x < jwidth; x++, bitmap_in++) {
 			// only set black pixels
 			if (!*bitmap_in) {
-				*(chroma + (x / 32) * 1024 + ((x % 32) / 2 * 2) + ((cy % 32) * 32) + ((cy / 32) * (((jwidth + 31) / 32) * 1024))) = 128;
-				*(chroma + (x / 32) * 1024 + ((x % 32) / 2 * 2 + 1) + ((cy % 32) * 32) + ((cy / 32) * (((jwidth + 31) / 32) * 1024))) = 128;
-				*(luma + (x / 32) * 1024 + (x % 32) + ((y % 32) * 32) + ((y / 32) * (((jwidth + 31) / 32) * 1024))) = 0;
+				*(luma + (x / 32) * 1024 + (x % 32) + ((y % 32) * 32) + ((y / 32) * (((jwidth + 31) / 32) * 1024))) = bitmap->color[0];
+				*(chroma + (x / 32) * 1024 + ((x % 32) / 2 * 2) + ((cy % 32) * 32) + ((cy / 32) * (((jwidth + 31) / 32) * 1024))) = bitmap->color[1] + 128;
+				*(chroma + (x / 32) * 1024 + ((x % 32) / 2 * 2 + 1) + ((cy % 32) * 32) + ((cy / 32) * (((jwidth + 31) / 32) * 1024))) = bitmap->color[2] + 128;
 			}
 		}
 	}

@@ -49,7 +49,33 @@ int end_slideshow(void *vshow)
 	return 0;
 }
 
-int set_slide(void *vshow, int n)
+static void merge_bitmaps(image_layer *layer, bitmap *bitmap)
+{
+	int xoff = bitmap->xoff;
+	int yoff = bitmap->yoff;
+	int width = bitmap->width;
+	int height = bitmap->height;
+	unsigned char *bitmap_in = bitmap->bitmap;
+	int jwidth = layer->jpeg.width;
+	int jheight = layer->jpeg.width;
+	int x, y;
+	uint8_t *luma = layer->luma_output;
+	uint8_t *chroma = layer->chroma_output;
+
+	for (y = yoff; y < yoff + height && y < jheight; y++) {
+		int cy = y / layer->jpeg.comp[0].samp_v;
+		for (x = xoff; x < xoff + width && x < jwidth; x++, bitmap_in++) {
+			// only set black pixels
+			if (!*bitmap_in) {
+				*(chroma + (x / 32) * 1024 + ((x % 32) / 2 * 2) + ((cy % 32) * 32) + ((cy / 32) * (((jwidth + 31) / 32) * 1024))) = 128;
+				*(chroma + (x / 32) * 1024 + ((x % 32) / 2 * 2 + 1) + ((cy % 32) * 32) + ((cy / 32) * (((jwidth + 31) / 32) * 1024))) = 128;
+				*(luma + (x / 32) * 1024 + (x % 32) + ((y % 32) * 32) + ((y / 32) * (((jwidth + 31) / 32) * 1024))) = 0;
+			}
+		}
+	}
+}
+
+int set_slide(void *vshow, int n, bitmap *bitmap)
 {
 	slideshow *show = (slideshow *) vshow;
 	image_layer newlayer;
@@ -61,7 +87,14 @@ int set_slide(void *vshow, int n)
 		return -1;
 	}
 
+	// do this before showing the layer!
+	while (bitmap) {
+		merge_bitmaps(&newlayer, bitmap);
+		bitmap = bitmap->next;
+	}
+
 	show_jpeg(&newlayer);
+
 	transition_layers(&show->layer, &newlayer);
 	free_jpeg(&show->layer);
 

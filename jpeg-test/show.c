@@ -54,18 +54,26 @@ int init_jpeg(image_layer *layer, const char *filename)
 	if ((in = open(filename, O_RDONLY)) == -1)
 		return -1;
 
-	if (fstat(in, &s) < 0)
+	if (fstat(in, &s) < 0) {
+		close(in);
 		return -2;
+	}
 
-	if (s.st_size == 0)
+	if (s.st_size == 0) {
+		close(in);
 		return -3;
+	}
 
-	if ((data = mmap(NULL, s.st_size, PROT_READ, MAP_SHARED, in, 0)) == MAP_FAILED)
+	if ((data = mmap(NULL, s.st_size, PROT_READ, MAP_SHARED, in, 0)) == MAP_FAILED) {
+		close(in);
 		return -4;
+	}
 
 	memset(jpeg, 0, sizeof(jpeg_t));
-	if (!parse_jpeg(jpeg, data, s.st_size))
+	if (!parse_jpeg(jpeg, data, s.st_size)) {
+		close(in);
 		return -5;
+	}
 
 	decode_jpeg(layer);
 	munmap(data, s.st_size);

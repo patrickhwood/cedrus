@@ -22,7 +22,7 @@ endif
 
 $(TARGET): $(OBJ)
 	@echo "LD $(TARGET)"
-	$(Q)g++ $(LDFLAGS) $(OBJ) -o $@
+	$(Q)$(CC) $(LDFLAGS) $(OBJ) -o $@
 
 .PHONY: clean
 clean:
@@ -35,6 +35,6 @@ clean:
 
 %.o: %.c config.mk
 	@echo "CC $<"
-	$(Q)gcc $(CFLAGS) -c $< -o $@
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
 
 include $(wildcard $(foreach f,$(OBJ),$(basename $(f)).d))
